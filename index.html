@@ -358,7 +358,7 @@ async function runAgent(){
 
 // ── API HELPERS ───────────────────────────────────────────────────────────────
 async function apiCall(body){
-  var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var r=await fetch('http://localhost:3000/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){var t=await r.text();throw new Error('API '+r.status+': '+t.slice(0,200));}
   return r.json();
 }
