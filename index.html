@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análisis diario Ormuz</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0e;--bg2:#111318;--bg3:#181c23;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#e8e6df;--muted:#6b6e78;
+  --accent:#c8f060;--warn:#f0a040;--danger:#f05060;--info:#60b8f0;--safe:#60d8a0;
+  --pur:#a855f7;
+}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;font-size:14px;min-height:100vh}
+.wrap{display:grid;grid-template-columns:310px 1fr;min-height:100vh}
+
+/* SIDEBAR */
+.sb{border-right:1px solid var(--border);padding:18px 14px;display:flex;flex-direction:column;gap:16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;color:var(--muted)}
+.logo span{color:var(--accent)}
+.sb-title{font-size:14px;font-weight:700;line-height:1.3}
+.lbl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:9px;resize:none;outline:none;line-height:1.6;transition:border-color .2s}
+textarea:focus{border-color:var(--accent)}
+.ind-list{display:flex;flex-direction:column;gap:2px}
+.ig-hdr{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--info);padding:8px 5px 3px;border-top:1px solid var(--border);margin-top:3px}
+.ig-hdr:first-child{border-top:none;margin-top:0;padding-top:2px}
+.i-row{display:flex;align-items:center;gap:7px;padding:4px 5px;border-radius:4px;cursor:pointer;transition:background .15s}
+.i-row:hover{background:var(--bg3)}
+.i-row input{accent-color:var(--accent);width:12px;height:12px;cursor:pointer;flex-shrink:0}
+.i-row label{font-size:11px;flex:1;cursor:pointer}
+.i-dot{width:6px;height:6px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.i-dot.al{background:var(--danger);box-shadow:0 0 5px var(--danger)}
+.i-dot.wa{background:var(--warn);box-shadow:0 0 5px var(--warn)}
+.i-dot.ok{background:var(--safe)}
+.run-btn{width:100%;background:var(--accent);color:#0a0b0e;border:none;border-radius:6px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;padding:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .2s;margin-top:auto}
+.run-btn:hover{opacity:.85}
+.run-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* CONTENT */
+.ct{padding:26px 30px;overflow-y:auto}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:10px;text-align:center}
+.empty-icon{font-size:34px;opacity:.2}
+.empty-title{font-size:15px;font-weight:700;color:var(--muted)}
+.empty-sub{font-size:12px;color:var(--muted);max-width:300px;line-height:1.6}
+.err-msg{font-family:'DM Mono',monospace;font-size:11px;color:var(--danger);max-width:100%;word-break:break-all;white-space:pre-wrap;text-align:left;line-height:1.6;margin-top:8px}
+
+/* LOADING */
+.loading{display:none;flex-direction:column;gap:9px;padding:18px 0}
+.loading.on{display:flex}
+.step{display:flex;align-items:center;gap:9px;font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);opacity:0;transition:opacity .3s,transform .3s;transform:translateY(4px)}
+.step.done{opacity:1;transform:none;color:var(--text)}
+.step.active{opacity:1;transform:none;color:var(--accent)}
+.step-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.step.done .step-dot{background:var(--safe)}
+.step.active .step-dot{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* REPORT */
+.report{display:none;flex-direction:column;gap:24px}
+.report.on{display:flex}
+.rh{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.rh-title{font-size:21px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.rh-meta{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:5px}
+.rh-stamp{font-family:'DM Mono',monospace;font-size:10px;padding:4px 9px;border:1px solid var(--border2);border-radius:4px;color:var(--muted);text-align:right}
+.sec{border-bottom:1px solid var(--border);padding-bottom:20px}
+.sec:last-child{border-bottom:none}
+.sl{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:11px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* SCENARIOS */
+.sc-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.sc-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:13px;position:relative;overflow:hidden}
+.sc-card.active{border-color:var(--warn)}
+.sc-card.active::after{content:'ACTIVO';position:absolute;top:9px;right:9px;font-family:'DM Mono',monospace;font-size:9px;color:var(--warn);background:rgba(240,160,64,.12);padding:2px 6px;border-radius:3px}
+.sc-card:nth-child(1){border-left:3px solid var(--safe)}
+.sc-card:nth-child(2){border-left:3px solid var(--warn)}
+.sc-card:nth-child(3){border-left:3px solid var(--danger)}
+.sc-card:nth-child(4){border-left:3px solid var(--pur)}
+.sc-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 5px;border-radius:3px;display:inline-block;margin-bottom:5px}
+.b-best{background:rgba(96,216,160,.12);color:var(--safe)}
+.b-base{background:rgba(240,160,64,.12);color:var(--warn)}
+.b-bad{background:rgba(240,80,96,.12);color:var(--danger)}
+.b-worst{background:rgba(168,85,247,.12);color:var(--pur)}
+.sc-num{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:4px}
+.sc-name{font-size:13px;font-weight:700;margin-bottom:8px}
+.sc-bar-bg{background:var(--bg3);border-radius:3px;height:3px;overflow:hidden;margin-bottom:5px}
+.sc-bar{height:100%;border-radius:3px;transition:width 1.2s ease}
+.sc-card:nth-child(1) .sc-bar{background:var(--safe)}
+.sc-card:nth-child(2) .sc-bar{background:var(--warn)}
+.sc-card:nth-child(3) .sc-bar{background:var(--danger)}
+.sc-card:nth-child(4) .sc-bar{background:var(--pur)}
+.sc-prob{font-family:'DM Mono',monospace;font-size:19px;font-weight:500}
+.sc-prob small{font-size:11px;color:var(--muted)}
+.sc-desc{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+/* INDICATOR TABLE */
+.ind-table{display:flex;flex-direction:column;gap:3px}
+.ig-row{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--info);padding:12px 3px 5px}
+.ig-row:first-child{padding-top:0}
+.i-tr{display:grid;grid-template-columns:125px 1fr 76px 80px 26px;align-items:center;gap:9px;padding:8px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:12px}
+.i-name{font-weight:700}
+.i-val{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)}
+.i-st{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.07em;padding:3px 6px;border-radius:3px;text-align:center}
+.i-st.ALERTA{background:rgba(240,80,96,.15);color:var(--danger)}
+.i-st.TENSION{background:rgba(240,160,64,.15);color:var(--warn)}
+.i-st.NEUTRAL{background:rgba(107,110,120,.15);color:var(--muted)}
+.i-st.POSITIVO{background:rgba(96,216,160,.15);color:var(--safe)}
+.i-arrow{font-size:13px;text-align:center}
+.up{color:var(--danger)}.down{color:var(--safe)}.flat{color:var(--muted)}
+
+/* NARRATIVE */
+.narr{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:15px 17px;font-size:13px;line-height:1.8}
+
+/* PRESS */
+.press-list{display:flex;flex-direction:column;gap:6px}
+.p-item{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:11px 13px;display:grid;grid-template-columns:66px 1fr;gap:11px;align-items:start}
+.p-badge{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 6px;border-radius:3px;text-align:center;line-height:1.5}
+.pft{background:rgba(255,182,0,.12);color:#ffb600;border:1px solid rgba(255,182,0,.25)}
+.peco{background:rgba(225,38,25,.12);color:#e12619;border:1px solid rgba(225,38,25,.25)}
+.pnyt{background:rgba(96,184,240,.12);color:var(--info);border:1px solid rgba(96,184,240,.25)}
+.poth{background:rgba(107,110,120,.12);color:var(--muted);border:1px solid var(--border2)}
+.p-date{font-family:'DM Mono',monospace;font-size:9px;color:var(--muted);margin-top:4px}
+.p-head{font-size:12px;font-weight:700;line-height:1.45;margin-bottom:4px}
+.p-read{font-size:11px;color:var(--muted);line-height:1.55}
+
+/* INTEL BOX */
+.intel-box{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--info);border-radius:0 6px 6px 0;padding:13px 15px;font-family:'DM Mono',monospace;font-size:11px;line-height:1.75;color:var(--muted)}
+.intel-section{color:var(--info);font-weight:500;margin:10px 0 4px}
+.intel-section:first-child{margin-top:0}
+.intel-row{margin-bottom:2px}
+.intel-label{color:var(--muted)}
+.intel-val{color:var(--text)}
+.intel-synthesis{color:var(--accent);margin-top:10px;line-height:1.7}
+
+/* DERIVATIVE */
+.deriv-list{display:flex;flex-direction:column}
+.d-item{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-top:none;font-size:12px;line-height:1.55}
+.d-item:first-child{border-top:1px solid var(--border);border-radius:6px 6px 0 0}
+.d-item:last-child{border-radius:0 0 6px 6px}
+.d-ord{font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);background:rgba(200,240,96,.1);padding:2px 6px;border-radius:3px;flex-shrink:0;margin-top:1px}
+
+/* MASTER */
+.master{background:var(--bg2);border:1px solid var(--warn);border-radius:8px;padding:15px 17px}
+.mq-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.mq{display:flex;align-items:center;gap:8px;font-size:13px}
+.mq-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mq-dot.y{background:var(--danger)}
+.mq-dot.n{background:var(--safe)}
+.verd{margin-top:11px;font-size:13px;line-height:1.65;color:var(--warn)}
+.enrich-badge{display:inline-block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--info);background:rgba(96,184,240,.1);padding:2px 7px;border-radius:3px;margin-top:6px}
+
+/* FOOTER */
+.rfooter{display:flex;gap:8px;padding-top:13px;border-top:1px solid var(--border)}
+.abtn{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:'Syne',sans-serif;font-size:12px;padding:7px 13px;cursor:pointer;transition:background .15s,color .15s}
+.abtn:hover{background:var(--bg2);border-color:var(--accent);color:var(--accent)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;width:100%;max-width:640px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:13px 17px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head span{font-size:13px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+.modal textarea{flex:1;background:var(--bg);border:none;color:var(--accent);font-family:'DM Mono',monospace;font-size:11px;line-height:1.6;padding:15px 17px;resize:none;outline:none;min-height:260px}
+.modal-foot{padding:10px 17px;border-top:1px solid var(--border);display:flex;gap:8px}
+.cbtn{background:var(--accent);color:#0a0b0e;border:none;border-radius:6px;font-size:12px;font-weight:700;padding:7px 17px;cursor:pointer}
+.clbtn{background:transparent;border:1px solid var(--border2);color:var(--text);border-radius:6px;font-size:12px;padding:7px 17px;cursor:pointer}
+
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="sb">
+  <div>
+    <div class="logo"><span>◈</span> AGENTE GEOPOLÍTICO</div>
+    <div class="sb-title" style="margin-top:5px">Análisis diario de la<br>situación en Ormuz</div>
+  </div>
+  <div>
+    <div class="lbl">Foco de análisis</div>
+    <textarea id="topic" rows="4">Tensión Irán / Estrecho de Ormuz. Riesgo de disrupción en suministro de petróleo, mercados energéticos y posible escalada militar regional.</textarea>
+  </div>
+  <div style="flex:1">
+    <div class="lbl">Indicadores</div>
+    <div class="ind-list" id="ind-list"></div>
+  </div>
+  <button class="run-btn" id="run-btn" onclick="runAgent()">
+    <span id="btn-icon">▶</span><span id="btn-text">Generar informe diario</span>
+  </button>
+</div>
+
+<div class="ct">
+  <div class="empty" id="empty">
+    <div class="empty-icon">◈</div>
+    <div class="empty-title">Agente en espera</div>
+    <div class="empty-sub">Configura el foco y ejecuta el agente para generar el informe.</div>
+  </div>
+  <div class="loading" id="loading">
+    <div style="font-size:13px;font-weight:700;margin-bottom:3px">Ejecutando agente…</div>
+    <div id="steps"></div>
+  </div>
+  <div class="report" id="report"></div>
+</div>
+
+</div>
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+var IND_GROUPS = [
+  {group:'Seguridad energética', items:[
+    {id:'brent',    name:'Brent'},
+    {id:'ttf',      name:'TTF gas europeo'},
+    {id:'urea',     name:'Fertilizante'},
+    {id:'wheat',    name:'Trigo (CBOT)'}
+  ]},
+  {group:'Seguridad marítima', items:[
+    {id:'tankers',  name:'Baltic Dirty Tanker Index'},
+    {id:'harpex',   name:'Harpex (flete contenedores)'},
+    {id:'bdi',      name:'Baltic Dry Index'},
+    {id:'war_risk', name:'Seguros riesgo de guerra'},
+    {id:'ormuz',    name:'Tráfico Estrecho Ormuz'}
+  ]},
+  {group:'Seguridad económica', items:[
+    {id:'gold',      name:'Oro'},
+    {id:'breakeven', name:'Breakeven inflación'},
+    {id:'hy_spreads',name:'High Yield Spreads'},
+    {id:'pmi',       name:'PMI Manufacturero'}
+  ]},
+  {group:'Seguridad geopolítica', items:[
+    {id:'geo_risk',   name:'Índice riesgo geopolítico (GPR)'},
+    {id:'irak_spread',name:'Spread bonos Irak/Arabia Saudita'}
+  ]}
+];
+var INDS = IND_GROUPS.reduce(function(a,g){return a.concat(g.items);},[]);
+var SEL  = new Set(INDS.map(function(i){return i.id;}));
+var RD   = null;
+
+var STEPS = [
+  'Analizando indicadores de mercado…',
+  'Calculando escenarios geopolíticos…',
+  'Buscando series históricas (7 días)…',
+  'Consultando WorldTensionWatch · EPU · BlackRock BGRI…',
+  'Rastreando FT · The Economist · NYT…',
+  'Redactando informe…'
+];
+
+var INTEL_CONTEXT = [
+  '── FLUJOS MARÍTIMOS Y ENERGÉTICOS ──────────────────────',
+  'Tránsito Ormuz (IMF PortWatch): 100→6 buques/día (feb→mar 2026)',
+  'Exportación petróleo iraní (Kpler): 1.1–1.5 M bpd, mediados marzo',
+  'Buques anclados fuera del Estrecho (MarineTraffic): 200+',
+  '',
+  '── MACRO Y DIVISA IRÁN ─────────────────────────────────',
+  'Tipo de cambio libre IRR/USD (Bonbast): >1.6 millones IRR/USD',
+  'Inflación general (SCI): 68.1% · Inflación alimentos: 110% (mar 2026)',
+  'Prima riesgo Brent: +39% desde 27 feb 2026 ($82–85/bbl)',
+  '',
+  '── CONFLICTO E INESTABILIDAD SOCIAL ────────────────────',
+  'Eventos violencia política (ACLED): 990+ protestas, 1ª semana marzo',
+  'CDS soberanos: baseline 85bps · Alerta si supera 125bps'
+].join('\n');
+
+// Build sidebar
+(function(){
+  var list = document.getElementById('ind-list');
+  IND_GROUPS.forEach(function(g){
+    var hdr = document.createElement('div');
+    hdr.className='ig-hdr'; hdr.textContent=g.group;
+    list.appendChild(hdr);
+    g.items.forEach(function(ind){
+      var row=document.createElement('div'); row.className='i-row';
+      row.innerHTML='<input type="checkbox" id="c_'+ind.id+'" checked><label for="c_'+ind.id+'">'+ind.name+'</label><div class="i-dot" id="d_'+ind.id+'"></div>';
+      row.querySelector('input').addEventListener('change',function(e){e.target.checked?SEL.add(ind.id):SEL.delete(ind.id);});
+      list.appendChild(row);
+    });
+  });
+})();
+
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+// ── RUN ───────────────────────────────────────────────────────────────────────
+function stepDone(idx){
+  for(var k=0;k<=idx;k++){
+    var el=document.getElementById('st'+k);
+    if(el){el.classList.remove('active');el.classList.add('done');}
+  }
+  var next=document.getElementById('st'+(idx+1));
+  if(next) next.classList.add('active');
+}
+
+async function runAgent(){
+  var btn=document.getElementById('run-btn');
+  btn.disabled=true;
+  document.getElementById('btn-icon').textContent='◌';
+  document.getElementById('btn-text').textContent='Analizando…';
+  document.getElementById('empty').style.display='none';
+  var rep=document.getElementById('report'); rep.className='report'; rep.style.display='none';
+  var loadEl=document.getElementById('loading'); var stepsEl=document.getElementById('steps');
+  loadEl.className='loading on'; stepsEl.innerHTML='';
+  STEPS.forEach(function(s,i){
+    var el=document.createElement('div'); el.className='step'; el.id='st'+i;
+    el.innerHTML='<div class="step-dot"></div><span>'+s+'</span>';
+    stepsEl.appendChild(el);
+  });
+  var si=0;
+  var ticker=setInterval(function(){
+    if(si>0){var p=document.getElementById('st'+(si-1));if(p){p.classList.remove('active');p.classList.add('done');}}
+    var c=document.getElementById('st'+si); if(c) c.classList.add('active');
+    si++; if(si>=STEPS.length) clearInterval(ticker);
+  },1400);
+
+  var topic=document.getElementById('topic').value;
+  var indNames=INDS.filter(function(i){return SEL.has(i.id);}).map(function(i){return i.name;}).join(', ');
+
+  try{
+    // Sequential calls to avoid rate limit (concurrency limit = 1 per artifact)
+    stepDone(0);
+    var mainData = await callMain(topic, indNames);
+    stepDone(1);
+    var chartData = await callCharts();
+    stepDone(2);
+    var intelData = await callIntel(topic);
+    stepDone(3);
+    var pressItems = await callPress(topic);
+    stepDone(4);
+
+    clearInterval(ticker);
+    for(var j=0;j<STEPS.length;j++){var el=document.getElementById('st'+j);if(el){el.classList.remove('active');el.classList.add('done');}}
+    RD=mainData; RD._charts=chartData; RD._intel=intelData; RD._press=pressItems;
+    await sleep(300);
+    loadEl.className='loading';
+    renderReport(mainData, pressItems, chartData, intelData);
+    // Background enrich
+    callEnrich(mainData, intelData).then(function(en){
+      if(!en) return;
+      if(en.narrativa_principal){var el=document.getElementById('narr-main');if(el)el.textContent=en.narrativa_principal; RD.narrativa_principal=en.narrativa_principal;}
+      if(en.veredicto){var el=document.getElementById('verd-main');if(el)el.textContent=en.veredicto; if(RD.lectura_maestra)RD.lectura_maestra.veredicto=en.veredicto;}
+      var badge=document.getElementById('enrich-badge');
+      if(badge) badge.style.display='inline-block';
+    }).catch(function(e){console.warn('Enrich:',e.message);});
+  }catch(err){
+    clearInterval(ticker);
+    loadEl.className='loading';
+    var empty=document.getElementById('empty'); empty.style.display='flex';
+    empty.querySelector('.empty-title').textContent='Error';
+    var ed=empty.querySelector('.err-msg');
+    if(!ed){ed=document.createElement('div');ed.className='err-msg';empty.appendChild(ed);}
+    ed.textContent=err.message;
+    console.error('[Agente]',err);
+  }
+  btn.disabled=false;
+  document.getElementById('btn-icon').textContent='▶';
+  document.getElementById('btn-text').textContent='Actualizar informe';
+}
+
+// ── API HELPERS ───────────────────────────────────────────────────────────────
+async function apiCall(body){
+  var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){var t=await r.text();throw new Error('API '+r.status+': '+t.slice(0,200));}
+  return r.json();
+}
+
+async function multiTurn(system,userMsg,tools,maxTokens){
+  var messages=[{role:'user',content:userMsg}];
+  for(var i=0;i<8;i++){
+    var result=await apiCall({model:'claude-sonnet-4-20250514',max_tokens:maxTokens||2000,system:system,tools:tools||undefined,messages:messages});
+    var content=result.content, stop=result.stop_reason;
+    messages.push({role:'assistant',content:content});
+    if(stop==='end_turn'){
+      var ts=content.filter(function(b){return b.type==='text';});
+      if(ts.length) return ts[ts.length-1].text;
+    }
+    if(stop==='tool_use'){
+      var uses=content.filter(function(b){return b.type==='tool_use';});
+      if(!uses.length) break;
+      messages.push({role:'user',content:uses.map(function(tu){return{type:'tool_result',tool_use_id:tu.id,content:[{type:'text',text:'done'}]};})});
+      continue;
+    }
+    var ts2=content.filter(function(b){return b.type==='text';});
+    if(ts2.length) return ts2[ts2.length-1].text;
+    break;
+  }
+  return null;
+}
+
+function parseObj(raw){
+  if(!raw) throw new Error('Respuesta vacía');
+  var t=raw.trim().replace(/\u201C|\u201D/g,'"').replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+  var s=t.indexOf('{'); if(s===-1) throw new Error('Sin JSON. Preview: '+t.slice(0,150));
+  t=t.slice(s);
+  try{return JSON.parse(t);}catch(_){}
+  var e=t.lastIndexOf('}');
+  if(e!==-1){var ch=t.slice(0,e+1).replace(/,\s*([}\]])/g,'$1');try{return JSON.parse(ch);}catch(_){} try{return JSON.parse(autoClose(ch));}catch(_){}}
+  throw new Error('JSON inválido. Preview: '+t.slice(0,200));
+}
+
+function parseArr(raw){
+  if(!raw) return [];
+  var t=raw.trim().replace(/\u201C|\u201D/g,'"').replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+  var s=t.indexOf('['),e=t.lastIndexOf(']');
+  if(s!==-1&&e!==-1) t=t.slice(s,e+1);
+  try{return JSON.parse(t);}catch(_){return [];}
+}
+
+function autoClose(s){
+  s=s.replace(/,\s*$/,'').replace(/,\s*"[^"]*$/,'');
+  var br=0,bk=0,inS=false,esc=false;
+  for(var i=0;i<s.length;i++){var c=s[i];if(esc){esc=false;continue;}if(c==='\\'){esc=true;continue;}if(c==='"'){inS=!inS;continue;}if(inS)continue;if(c==='{')br++;else if(c==='}')br--;else if(c==='[')bk++;else if(c===']')bk--;}
+  while(bk>0){s+=']';bk--;} while(br>0){s+='}';br--;}
+  return s;
+}
+
+// ── CALL MAIN ─────────────────────────────────────────────────────────────────
+async function callMain(topic,indNames){
+  var today=new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var sys='Eres un analista geopolitico senior. RESPONDE SOLO CON JSON. Sin texto. Sin backticks. Empieza con { termina con }.\n\nJSON:\n{"fecha":"","resumen_ejecutivo":"2 frases","indicadores":[{"id":"brent","nombre":"Brent","valor_actual":"$XX/bbl","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"ttf","nombre":"TTF gas europeo","valor_actual":"XX EUR/MWh","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"urea","nombre":"Fertilizante","valor_actual":"$XXX/t","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"wheat","nombre":"Trigo CBOT","valor_actual":"XXXc/bu","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"tankers","nombre":"Baltic Dirty Tanker Index","valor_actual":"XXXX","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"harpex","nombre":"Harpex","valor_actual":"XXXX","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"bdi","nombre":"Baltic Dry Index","valor_actual":"XXXX","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"war_risk","nombre":"Seguros guerra","valor_actual":"X%","variacion":"+X%","direccion":"up","estado":"TENSION","lectura":"frase"},{"id":"ormuz","nombre":"Trafico Ormuz","valor_actual":"6/dia","variacion":"down","direccion":"down","estado":"ALERTA","lectura":"frase"},{"id":"gold","nombre":"Oro","valor_actual":"$XXXX/oz","variacion":"+X%","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"breakeven","nombre":"Breakeven inflacion","valor_actual":"X.XX%","variacion":"flat","direccion":"flat","estado":"NEUTRAL","lectura":"frase"},{"id":"hy_spreads","nombre":"High Yield Spreads","valor_actual":"XXXbps","variacion":"+Xbps","direccion":"up","estado":"NEUTRAL","lectura":"frase"},{"id":"pmi","nombre":"PMI Manufacturero","valor_actual":"XX.X","variacion":"flat","direccion":"flat","estado":"NEUTRAL","lectura":"frase"},{"id":"geo_risk","nombre":"Indice GPR","valor_actual":"XXX","variacion":"+X%","direccion":"up","estado":"TENSION","lectura":"frase"},{"id":"irak_spread","nombre":"Spread Irak-Arabia","valor_actual":"XXXbps","variacion":"+Xbps","direccion":"up","estado":"NEUTRAL","lectura":"frase"}],"escenarios":[{"id":"s1","nombre":"Ruido sin consecuencias","probabilidad":30,"descripcion":"frase","activo":false},{"id":"s2","nombre":"Tension con impacto acotado","probabilidad":40,"descripcion":"frase","activo":true},{"id":"s3","nombre":"Crisis energetica regional","probabilidad":20,"descripcion":"frase","activo":false},{"id":"s4","nombre":"Colapso sistemico","probabilidad":10,"descripcion":"frase","activo":false}],"narrativa_principal":"4-5 frases de analisis integrado sin saltos de linea","segunda_derivada":[{"orden":"1a","cadena":"frase"},{"orden":"2a","cadena":"frase"},{"orden":"3a","cadena":"frase"}],"lectura_maestra":{"sube_energia":true,"tensa_maritimo":true,"miedo_financiero":false,"deteriora_actividad":false,"veredicto":"2 frases del veredicto"}}\n\nReglas: probabilidades suman 100, un activo:true, estado=ALERTA|TENSION|NEUTRAL|POSITIVO, direccion=up|down|flat, sin comillas dentro de strings.';
+  var userMsg='Foco: '+topic+'\nIndicadores: '+indNames+'\nFecha: '+today+'\n\nDATOS OPERATIVOS:\n'+INTEL_CONTEXT+'\n\nUsa estos datos para enriquecer la narrativa y el veredicto. Genera el JSON.';
+  var result=await apiCall({model:'claude-sonnet-4-20250514',max_tokens:8000,system:sys,messages:[{role:'user',content:userMsg}]});
+  var texts=(result.content||[]).filter(function(b){return b.type==='text';});
+  if(!texts.length) throw new Error('Sin texto. stop_reason='+result.stop_reason);
+  return parseObj(texts[texts.length-1].text);
+}
+
+// ── CALL CHARTS ───────────────────────────────────────────────────────────────
+async function callCharts(){
+  var today=new Date().toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'});
+  var sys='Eres un proveedor de datos. Busca valores de cierre de los ultimos 7 dias para cada indicador. RESPONDE SOLO CON JSON. Sin texto. Sin backticks. Empieza con { termina con }.\nFormato: {"brent":[85.2,85.8,86.1,85.5,86.9,87.4,87.1],"ttf":[38,38.5,39,38.8,39.4,39.9,40.1],...}\nExactamente 7 numeros por array, del mas antiguo al mas reciente. Ids: brent,ttf,urea,wheat,tankers,harpex,bdi,war_risk,ormuz,gold,breakeven,hy_spreads,pmi,geo_risk,irak_spread';
+  var tools=[{type:'web_search_20250305',name:'web_search'}];
+  try{
+    var raw=await multiTurn(sys,'Fecha: '+today+'. Busca valores diarios ultimos 7 dias y devuelve JSON.',tools,2000);
+    if(!raw) return {};
+    var t=raw.trim().replace(/\u201C|\u201D/g,'"').replace(/^```json\s*/i,'').replace(/^```\s*/i,'').replace(/```\s*$/,'').trim();
+    var s=t.indexOf('{'),e=t.lastIndexOf('}');
+    if(s!==-1&&e!==-1) t=t.slice(s,e+1);
+    var parsed=JSON.parse(t);
+    Object.keys(parsed).forEach(function(k){if(!Array.isArray(parsed[k])||parsed[k].length<2)delete parsed[k];else parsed[k]=parsed[k].map(function(v){return parseFloat(v)||0;});});
+    return parsed;
+  }catch(e){console.warn('Charts:',e.message);return {};}
+}
+
+// ── CALL INTEL ────────────────────────────────────────────────────────────────
+async function callIntel(topic){
+  var today=new Date().toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'});
+  var sys='Eres un analista de riesgo. Busca datos actuales de estas fuentes para el contexto Iran/Ormuz: (1) WorldTensionWatch.com - indice tension global 0-100%; (2) policyuncertainty.com - EPU Index nivel actual; (3) BlackRock BGRI (blackrock.com BII) - score atencion mercado Oriente Medio, likelihood, top riesgos. RESPONDE SOLO CON JSON. Sin texto. Sin backticks.\nFormato: {"world_tension":{"score":"X%","nivel":"Low|Moderate|High|Critical","descripcion":"frase"},"epu":{"nivel":"XXX","descripcion":"frase"},"blackrock":{"bgri_score":"valor","likelihood":"Low|Medium|High","top_riesgos":["r1","r2","r3"],"activos_sensibles":["a1","a2"],"descripcion":"frase"},"sintesis":"2-3 frases integrando las tres fuentes para Iran/Ormuz"}';
+  var tools=[{type:'web_search_20250305',name:'web_search'}];
+  try{
+    var raw=await multiTurn(sys,'Tema: '+topic+'\nFecha: '+today+'\nBusca datos WorldTensionWatch, EPU, BlackRock BGRI y devuelve JSON.',tools,1500);
+    return raw ? parseObj(raw) : {};
+  }catch(e){console.warn('Intel:',e.message);return {};}
+}
+
+// ── CALL PRESS ────────────────────────────────────────────────────────────────
+async function callPress(topic){
+  var today=new Date().toLocaleDateString('es-ES',{year:'numeric',month:'long',day:'numeric'});
+  var sys='Eres un monitor de prensa. Busca titulares recientes de Financial Times, The Economist y New York Times sobre el tema. RESPONDE SOLO CON ARRAY JSON. Sin texto. Sin backticks. Empieza con [ termina con ].\nFormato: [{"source":"Financial Times","headline":"titular","reading":"1-2 frases geopoliticas","date":"hace X horas"}]\n4-7 items, al menos 1-2 de cada publicacion, ultimas 72h.';
+  var tools=[{type:'web_search_20250305',name:'web_search'}];
+  try{
+    var raw=await multiTurn(sys,'Tema: '+topic+'\nFecha: '+today+'\nBusca titulares y devuelve array JSON.',tools,2000);
+    return raw ? parseArr(raw) : [];
+  }catch(e){console.warn('Press:',e.message);return [];}
+}
+
+// ── CALL ENRICH ───────────────────────────────────────────────────────────────
+async function callEnrich(data,intel){
+  if(!intel||!data) return null;
+  var ctx='WorldTensionWatch: '+(intel.world_tension?intel.world_tension.score+' '+intel.world_tension.nivel:'n/d')+
+    ' | EPU: '+(intel.epu?intel.epu.nivel:'n/d')+
+    ' | BlackRock BGRI: '+(intel.blackrock?intel.blackrock.bgri_score+' likelihood '+intel.blackrock.likelihood:'n/d')+
+    (intel.sintesis?' | '+intel.sintesis:'');
+  var sys='Analista geopolitico. Reescribe la narrativa y el veredicto integrando los nuevos datos. SOLO JSON. Sin texto extra. {"narrativa_principal":"4-6 frases sin saltos de linea","veredicto":"2 frases"}';
+  try{
+    var result=await apiCall({model:'claude-sonnet-4-20250514',max_tokens:600,system:sys,messages:[{role:'user',content:'Narrativa previa: '+data.narrativa_principal+'\nVeredicto previo: '+(data.lectura_maestra?data.lectura_maestra.veredicto:'')+'\nDatos nuevos: '+ctx+'\nReescribe.'}]});
+    var texts=(result.content||[]).filter(function(b){return b.type==='text';});
+    if(!texts.length) return null;
+    return parseObj(texts[texts.length-1].text);
+  }catch(e){console.warn('Enrich:',e.message);return null;}
+}
+
+// ── SPARKLINE ─────────────────────────────────────────────────────────────────
+function sparkline(series,direction){
+  if(!series||series.length<2) return '<div style="width:80px;height:32px;display:flex;align-items:center;justify-content:center;font-family:DM Mono,monospace;font-size:9px;color:var(--muted);opacity:.4">—</div>';
+  var W=80,H=32,pad=3;
+  var min=Math.min.apply(null,series),max=Math.max.apply(null,series),range=max-min||1,n=series.length;
+  var pts=series.map(function(v,i){var x=pad+(i/(n-1))*(W-pad*2);var y=H-pad-((v-min)/range)*(H-pad*2);return x.toFixed(1)+','+y.toFixed(1);});
+  var col=direction==='up'?'#f05060':direction==='down'?'#60d8a0':'#6b6e78';
+  var lp=pts[pts.length-1].split(','),lx=parseFloat(lp[0]),ly=parseFloat(lp[1]);
+  var area='M'+pts.join('L')+'L'+(W-pad)+','+(H-pad)+'L'+pad+','+(H-pad)+'Z';
+  return '<svg width="80" height="32" viewBox="0 0 80 32" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="'+area+'" fill="'+col+'" fill-opacity="0.1"/><polyline points="'+pts.join(' ')+'" fill="none" stroke="'+col+'" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+lx+'" cy="'+ly+'" r="2" fill="'+col+'"/></svg>';
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderReport(data, press, charts, intel){
+  charts=charts||{}; intel=intel||{};
+  var el=document.getElementById('report');
+  var now=new Date(), time=now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+
+  // Sidebar dots
+  (data.indicadores||[]).forEach(function(ind){
+    var dot=document.getElementById('d_'+ind.id); if(!dot) return;
+    dot.className='i-dot';
+    if(ind.estado==='ALERTA') dot.classList.add('al');
+    else if(ind.estado==='TENSION') dot.classList.add('wa');
+    else if(ind.estado==='POSITIVO') dot.classList.add('ok');
+  });
+
+  // Scenarios
+  var badges={s1:['b-best','+ positivo'],s2:['b-base','+ probable'],s3:['b-bad','negativo'],s4:['b-worst','− negativo']};
+  var scH=(data.escenarios||[]).map(function(s){
+    var b=badges[s.id]||['b-base',''];
+    return '<div class="sc-card '+(s.activo?'active':'')+'"><div class="sc-num">ESC '+String(s.id||'').replace('s','').padStart(2,'0')+'</div><span class="sc-badge '+b[0]+'">'+b[1]+'</span><div class="sc-name">'+s.nombre+'</div><div class="sc-bar-bg"><div class="sc-bar" style="width:0" data-w="'+s.probabilidad+'"></div></div><div class="sc-prob">'+s.probabilidad+'<small>%</small></div><div class="sc-desc">'+(s.descripcion||'')+'</div></div>';
+  }).join('');
+
+  // Indicators
+  var indMap={}; (data.indicadores||[]).forEach(function(i){indMap[i.id]=i;});
+  var indH='';
+  IND_GROUPS.forEach(function(g){
+    indH+='<div class="ig-row">'+g.group+'</div>';
+    g.items.forEach(function(item){
+      var ind=indMap[item.id]; if(!ind) return;
+      var arr=ind.direccion==='up'?'<span class="up">↑</span>':ind.direccion==='down'?'<span class="down">↓</span>':'<span class="flat">→</span>';
+      var sp=sparkline(charts[item.id],ind.direccion);
+      indH+='<div class="i-tr"><div class="i-name">'+ind.nombre+'</div><div class="i-val">'+(ind.valor_actual||'')+(ind.variacion?' '+ind.variacion:'')+' · '+(ind.lectura||'')+'</div><div class="i-st '+(ind.estado||'NEUTRAL')+'">'+(ind.estado||'')+'</div>'+sp+'<div class="i-arrow">'+arr+'</div></div>';
+    });
+  });
+
+  // Press
+  var pressH='';
+  if(!press||!press.length){
+    pressH='<div style="font-family:DM Mono,monospace;font-size:11px;color:var(--muted);padding:6px 0">Sin titulares disponibles.</div>';
+  } else {
+    pressH=press.map(function(p){
+      var src=(p.source||'').toLowerCase();
+      var cls=src.indexOf('financial')!==-1||src.indexOf(' ft')!==-1?'pft':src.indexOf('economist')!==-1?'peco':src.indexOf('times')!==-1||src.indexOf('nyt')!==-1?'pnyt':'poth';
+      var lbl=cls==='pft'?'FT':cls==='peco'?'Economist':cls==='pnyt'?'NYT':(p.source||'');
+      return '<div class="p-item"><div><div class="p-badge '+cls+'">'+lbl+'</div>'+(p.date?'<div class="p-date">'+p.date+'</div>':'')+'</div><div><div class="p-head">'+(p.headline||'')+'</div><div class="p-read">'+(p.reading||'')+'</div></div></div>';
+    }).join('');
+  }
+
+  // Intel box
+  var intelH='<div class="intel-section">DATOS OPERATIVOS FIJOS</div>';
+  intelH+=INTEL_CONTEXT.replace(/\n/g,'<br>');
+  if(intel && Object.keys(intel).length){
+    intelH+='<div class="intel-section" style="margin-top:12px">FUENTES EN TIEMPO REAL</div>';
+    if(intel.world_tension){
+      var wt=intel.world_tension;
+      var wtc=wt.nivel==='Critical'?'#f05060':wt.nivel==='High'?'#f0a040':wt.nivel==='Moderate'?'#facc15':'#60d8a0';
+      intelH+='<div class="intel-row"><span class="intel-label">WorldTensionWatch: </span><span style="color:'+wtc+';font-weight:500">'+(wt.score||'')+' — '+(wt.nivel||'')+'</span>'+(wt.descripcion?' · '+wt.descripcion:'')+'</div>';
+    }
+    if(intel.epu){
+      intelH+='<div class="intel-row"><span class="intel-label">EPU Index: </span><span class="intel-val">'+(intel.epu.nivel||'')+'</span>'+(intel.epu.descripcion?' · '+intel.epu.descripcion:'')+'</div>';
+    }
+    if(intel.blackrock){
+      var br=intel.blackrock;
+      var lhc=br.likelihood==='High'?'#f05060':br.likelihood==='Medium'?'#f0a040':'#60d8a0';
+      intelH+='<div class="intel-row"><span class="intel-label">BlackRock BGRI (O. Medio): </span><span class="intel-val">'+(br.bgri_score||'')+'</span> · Likelihood: <span style="color:'+lhc+'">'+(br.likelihood||'')+'</span></div>';
+      if(br.top_riesgos&&br.top_riesgos.length) intelH+='<div class="intel-row"><span class="intel-label">Top riesgos: </span>'+br.top_riesgos.join(' · ')+'</div>';
+      if(br.activos_sensibles&&br.activos_sensibles.length) intelH+='<div class="intel-row"><span class="intel-label">Activos sensibles: </span>'+br.activos_sensibles.join(', ')+'</div>';
+      if(br.descripcion) intelH+='<div class="intel-row" style="margin-top:4px">'+br.descripcion+'</div>';
+    }
+    if(intel.sintesis) intelH+='<div class="intel-synthesis">'+intel.sintesis+'</div>';
+  }
+
+  // Derivative
+  var derivH=(data.segunda_derivada||[]).map(function(d){return '<div class="d-item"><span class="d-ord">'+d.orden+'</span><span>'+d.cadena+'</span></div>';}).join('');
+
+  // Master
+  var lm=data.lectura_maestra||{};
+  var mqH=[['¿Sube la energía?',lm.sube_energia],['¿Se tensa el transporte?',lm.tensa_maritimo],['¿Aparece miedo financiero?',lm.miedo_financiero],['¿Deteriora la actividad?',lm.deteriora_actividad]]
+    .map(function(item){return '<div class="mq"><div class="mq-dot '+(item[1]?'y':'n')+'"></div><span>'+item[0]+' <strong>'+(item[1]?'SÍ':'NO')+'</strong></span></div>';}).join('');
+
+  el.innerHTML=
+    '<div class="rh"><div><div class="rh-title">Informe diario<br>geopolítico</div><div class="rh-meta">'+(data.fecha||now.toLocaleDateString('es-ES'))+' · '+time+'</div></div><div class="rh-stamp">AGENTE IA<br>'+time+'</div></div>'+
+    '<div class="sec"><div class="sl">Resumen ejecutivo</div><div class="narr" style="border-left-color:var(--info)">'+(data.resumen_ejecutivo||'')+'</div></div>'+
+    '<div class="sec"><div class="sl">Escenarios · probabilidad hoy</div><div class="sc-grid">'+scH+'</div></div>'+
+    '<div class="sec"><div class="sl">Panel de indicadores</div><div class="ind-table">'+indH+'</div></div>'+
+    '<div class="sec"><div class="sl">Narrativa analítica</div><div class="narr" id="narr-main">'+(data.narrativa_principal||'')+'</div></div>'+
+    '<div class="sec"><div class="sl">Señales de prensa · FT · The Economist · NYT</div><div class="press-list">'+pressH+'</div></div>'+
+    '<div class="sec"><div class="sl">Datos operativos de referencia</div><div class="intel-box">'+intelH+'</div></div>'+
+    '<div class="sec"><div class="sl">Segunda y tercera derivada</div><div class="deriv-list">'+derivH+'</div></div>'+
+    '<div class="sec"><div class="sl">Valoración</div><div class="master"><div class="mq-grid">'+mqH+'</div><div class="verd" id="verd-main">'+(lm.veredicto||'')+'</div><div id="enrich-badge" class="enrich-badge" style="display:none">Enriquecido con BGRI · EPU · WorldTensionWatch</div></div></div>'+
+    '<div class="rfooter"><button class="abtn" onclick="showCopy()">Copiar texto</button><button class="abtn" onclick="exportPDF()">Exportar PDF</button><button class="abtn" onclick="runAgent()">↺ Actualizar</button></div>';
+
+  el.style.display='flex'; el.className='report on';
+  requestAnimationFrame(function(){setTimeout(function(){el.querySelectorAll('.sc-bar').forEach(function(b){b.style.width=b.dataset.w+'%';});},80);});
+}
+
+// ── COPY ──────────────────────────────────────────────────────────────────────
+function buildText(){
+  if(!RD) return '';
+  var d=RD, sep='─'.repeat(52), t='';
+  t='ANÁLISIS DIARIO SITUACIÓN EN ORMUZ\n'+d.fecha+'\n'+sep+'\n\n';
+  t+='RESUMEN\n'+(d.resumen_ejecutivo||'')+'\n\n'+sep+'\n\n';
+  t+='ESCENARIOS\n';
+  (d.escenarios||[]).forEach(function(s){t+=(s.activo?'▶ ':' ')+s.nombre+': '+s.probabilidad+'%\n  '+(s.descripcion||'')+'\n';});
+  t+='\n'+sep+'\n\nINDICADORES\n';
+  IND_GROUPS.forEach(function(g){
+    t+='\n'+g.group.toUpperCase()+'\n';
+    var indMap={}; (d.indicadores||[]).forEach(function(i){indMap[i.id]=i;});
+    g.items.forEach(function(item){var ind=indMap[item.id];if(!ind)return;var a=ind.direccion==='up'?'^':ind.direccion==='down'?'v':'-';t+=a+' '+ind.nombre+': '+(ind.valor_actual||'')+' '+(ind.variacion||'')+' ['+ind.estado+']\n  '+(ind.lectura||'')+'\n';});
+  });
+  t+='\n'+sep+'\n\nNARRATIVA\n'+(d.narrativa_principal||'')+'\n\n'+sep+'\n\n';
+  if(d._press&&d._press.length){t+='SEÑALES DE PRENSA\n';d._press.forEach(function(p){t+='['+p.source+'] '+p.headline+'\n  '+p.reading+'\n  '+(p.date||'')+'\n\n';});}
+  t+=sep+'\n\nDATOS OPERATIVOS\n'+INTEL_CONTEXT;
+  if(d._intel&&d._intel.sintesis) t+='\n\nSÍNTESIS FUENTES TIEMPO REAL: '+d._intel.sintesis;
+  t+='\n\n'+sep+'\n\nSEGUNDA DERIVADA\n';
+  (d.segunda_derivada||[]).forEach(function(dd){t+=dd.orden+': '+dd.cadena+'\n';});
+  var lm=d.lectura_maestra||{};
+  t+='\n'+sep+'\n\nVALORACIÓN\n';
+  t+='Energía: '+(lm.sube_energia?'SÍ':'NO')+' | Transporte: '+(lm.tensa_maritimo?'SÍ':'NO')+' | Financiero: '+(lm.miedo_financiero?'SÍ':'NO')+' | Actividad: '+(lm.deteriora_actividad?'SÍ':'NO')+'\n'+(lm.veredicto||'');
+  return t;
+}
+
+function showCopy(){
+  var text=buildText();
+  var bg=document.createElement('div'); bg.className='modal-bg'; bg.id='cmodal';
+  bg.innerHTML='<div class="modal"><div class="modal-head"><span>Ctrl+A · Ctrl+C para copiar</span><button class="modal-close" onclick="document.getElementById(\'cmodal\').remove()">×</button></div><textarea id="cta" readonly></textarea><div class="modal-foot"><button class="cbtn" id="copybtn" onclick="doCopy()">Copiar todo</button><button class="clbtn" onclick="document.getElementById(\'cmodal\').remove()">Cerrar</button></div></div>';
+  document.body.appendChild(bg);
+  var ta=document.getElementById('cta'); ta.value=text; ta.focus(); ta.select();
+}
+
+function doCopy(){
+  var ta=document.getElementById('cta'); if(!ta) return;
+  ta.select(); ta.setSelectionRange(0,99999);
+  try{navigator.clipboard.writeText(ta.value).then(copyFB).catch(function(){document.execCommand('copy');copyFB();});}
+  catch(e){document.execCommand('copy');copyFB();}
+}
+function copyFB(){var b=document.getElementById('copybtn');if(!b)return;b.textContent='✓ Copiado';b.style.background='#60d8a0';setTimeout(function(){b.textContent='Copiar todo';b.style.background='';},2000);}
+
+// ── PDF ───────────────────────────────────────────────────────────────────────
+function exportPDF(){
+  if(!RD){ alert('Primero genera el informe.'); return; }
+  var d = RD;
+  var lm = d.lectura_maestra || {};
+
+  // Build indicator rows HTML
+  var indMap = {};
+  (d.indicadores||[]).forEach(function(i){ indMap[i.id] = i; });
+  var indsHTML = '';
+  IND_GROUPS.forEach(function(g){
+    indsHTML += '<tr><td colspan="4" class="grp-hdr">'+g.group+'</td></tr>';
+    g.items.forEach(function(item){
+      var ind = indMap[item.id]; if(!ind) return;
+      var stc = ind.estado==='ALERTA'?'#c0392b':ind.estado==='TENSION'?'#d68910':ind.estado==='POSITIVO'?'#1e8449':'#666';
+      var ar  = ind.direccion==='up'?'↑':ind.direccion==='down'?'↓':'→';
+      var arc = ind.direccion==='up'?'#c0392b':ind.direccion==='down'?'#1e8449':'#999';
+      indsHTML += '<tr><td class="ind-name">'+ind.nombre+'</td><td class="ind-val">'+(ind.valor_actual||'')+' '+(ind.variacion||'')+'</td><td style="color:'+stc+';font-family:monospace;font-size:10px">'+ind.estado+'</td><td style="color:'+arc+';text-align:center;font-size:14px">'+ar+'</td></tr>';
+    });
+  });
+
+  // Build scenarios HTML
+  var scHTML = '';
+  var scColors = {s1:'#1e8449',s2:'#d68910',s3:'#c0392b',s4:'#7d3c98'};
+  (d.escenarios||[]).forEach(function(s){
+    var col = scColors[s.id]||'#333';
+    scHTML += '<tr><td style="font-weight:700;color:'+col+'">'+(s.activo?'▶ ':'')+s.nombre+'</td><td style="color:'+col+';text-align:right;font-weight:700">'+s.probabilidad+'%</td><td style="color:#555;font-size:11px">'+(s.descripcion||'')+'</td></tr>';
+  });
+
+  // Build derivadas HTML
+  var derivHTML = (d.segunda_derivada||[]).map(function(dd){
+    return '<div class="deriv-item"><span class="deriv-ord">'+dd.orden+'</span><span>'+dd.cadena+'</span></div>';
+  }).join('');
+
+  // Build valoracion HTML
+  var mqHTML = [
+    ['¿Sube la energía?', lm.sube_energia],
+    ['¿Se tensa el transporte?', lm.tensa_maritimo],
+    ['¿Aparece miedo financiero?', lm.miedo_financiero],
+    ['¿Deteriora la actividad real?', lm.deteriora_actividad]
+  ].map(function(item){
+    return '<div class="mq-row"><span class="mq-dot '+(item[1]?'yes':'no')+'"></span>'+item[0]+' <strong>'+(item[1]?'SÍ':'NO')+'</strong></div>';
+  }).join('');
+
+  // Build press HTML
+  var pressHTML = '';
+  (d._press||[]).forEach(function(p){
+    pressHTML += '<div class="press-item"><span class="press-src">'+p.source+'</span><span class="press-head">'+p.headline+'</span><span class="press-read">'+p.reading+'</span></div>';
+  });
+
+  // Build intel synthesis
+  var intelSyn = '';
+  if(d._intel && d._intel.sintesis) intelSyn = '<div class="intel-syn">'+d._intel.sintesis+'</div>';
+
+  var html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">'+
+    '<title>Informe Geopolítico Ormuz · '+(d.fecha||'')+'</title>'+
+    '<style>'+
+    '*{box-sizing:border-box;margin:0;padding:0}'+
+    'body{font-family:Georgia,serif;font-size:12px;color:#1a1a1a;background:#fff;line-height:1.6}'+
+    '.page{max-width:750px;margin:0 auto;padding:20px 24px}'+
+    'h1{font-size:18px;font-weight:700;color:#1a1a1a;line-height:1.2;margin-bottom:2px}'+
+    '.subtitle{font-size:10px;color:#888;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;font-family:monospace}'+
+    '.date{font-size:10px;color:#888;font-family:monospace}'+
+    '.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:10px;margin-bottom:16px}'+
+    '.sec{margin-bottom:18px;page-break-inside:avoid}'+
+    '.sec-lbl{font-size:9px;font-family:monospace;letter-spacing:.15em;text-transform:uppercase;color:#888;border-bottom:1px solid #ddd;padding-bottom:4px;margin-bottom:9px}'+
+    '.box{background:#f8f8f8;border-left:3px solid #333;padding:10px 13px;font-size:12px;line-height:1.75;border-radius:0 4px 4px 0}'+
+    'table{width:100%;border-collapse:collapse;font-size:11px}'+
+    'td{padding:5px 7px;border-bottom:1px solid #eee;vertical-align:middle}'+
+    '.grp-hdr{background:#f0f0f0;color:#444;font-size:9px;font-family:monospace;letter-spacing:.12em;text-transform:uppercase;padding:6px 7px;font-weight:700}'+
+    '.ind-name{font-weight:700;font-size:11px}'+
+    '.ind-val{font-family:monospace;font-size:10px;color:#666}'+
+    '.deriv-item{display:flex;gap:10px;margin-bottom:7px;font-size:12px;line-height:1.5}'+
+    '.deriv-ord{background:#eee;color:#333;font-family:monospace;font-size:9px;padding:2px 6px;border-radius:3px;flex-shrink:0;margin-top:2px;font-weight:700}'+
+    '.mq-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px}'+
+    '.mq-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}'+
+    '.mq-dot.yes{background:#c0392b}.mq-dot.no{background:#1e8449}'+
+    '.verd{margin-top:10px;font-size:12px;color:#7d3c98;line-height:1.65;font-style:italic}'+
+    '.press-item{margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid #eee;font-size:11px}'+
+    '.press-src{font-family:monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;background:#eee;padding:1px 5px;border-radius:2px;margin-right:6px;color:#444}'+
+    '.press-head{font-weight:700}'+
+    '.press-read{display:block;color:#555;margin-top:2px;font-size:10px}'+
+    '.intel-box{background:#f8f8f8;border-left:3px solid #2471a3;padding:10px 13px;font-family:monospace;font-size:10px;line-height:1.8;color:#444;white-space:pre-wrap;border-radius:0 4px 4px 0}'+
+    '.intel-syn{margin-top:10px;font-size:11px;color:#1a5276;font-style:italic;line-height:1.65}'+
+    '.footer{text-align:center;font-family:monospace;font-size:9px;color:#aaa;margin-top:24px;padding-top:10px;border-top:1px solid #eee}'+
+    '.print-hint{background:#fffde7;border:1px solid #f9a825;padding:10px 14px;font-size:11px;border-radius:4px;margin-bottom:18px;color:#5d4037}'+
+    '@media print{.print-hint{display:none}body{font-size:11px}.page{padding:0}h1{font-size:16px}}'+
+    '</style></head><body><div class="page">'+
+    '<div class="print-hint">📄 Para guardar como PDF: <strong>Ctrl+P</strong> (o Cmd+P en Mac) → selecciona <strong>"Guardar como PDF"</strong> como destino de impresión.</div>'+
+    '<div class="hdr"><div><div class="subtitle">◈ Agente Geopolítico</div><h1>Análisis diario de la situación en Ormuz</h1></div><div class="date">'+(d.fecha||'')+'</div></div>'+
+    '<div class="sec"><div class="sec-lbl">Resumen ejecutivo</div><div class="box" style="border-left-color:#2471a3">'+(d.resumen_ejecutivo||'')+'</div></div>'+
+    '<div class="sec"><div class="sec-lbl">Escenarios · probabilidad hoy</div><table><tbody>'+scHTML+'</tbody></table></div>'+
+    '<div class="sec"><div class="sec-lbl">Panel de indicadores</div><table><tbody>'+indsHTML+'</tbody></table></div>'+
+    '<div class="sec"><div class="sec-lbl">Narrativa analítica</div><div class="box">'+(d.narrativa_principal||'')+'</div></div>'+
+    (pressHTML?'<div class="sec"><div class="sec-lbl">Señales de prensa</div>'+pressHTML+'</div>':'')+
+    '<div class="sec"><div class="sec-lbl">Datos operativos de referencia</div><div class="intel-box">'+INTEL_CONTEXT+intelSyn+'</div></div>'+
+    '<div class="sec"><div class="sec-lbl">Segunda y tercera derivada</div>'+derivHTML+'</div>'+
+    '<div class="sec"><div class="sec-lbl">Valoración</div><div style="padding:12px;background:#fefefe;border:1px solid #ddd;border-radius:4px">'+mqHTML+'<div class="verd">'+(lm.veredicto||'')+'</div></div></div>'+
+    '<div class="footer">Agente Geopolítico IA · '+(d.fecha||'')+'</div>'+
+    '</div></body></html>';
+
+  // Write to a Blob and open via object URL — works in sandboxed iframes
+  try {
+    var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href   = url;
+    a.target = '_blank';
+    a.download = 'informe_geopolitico.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+  } catch(e) {
+    // Final fallback: data URI
+    var encoded = 'data:text/html;charset=utf-8,' + encodeURIComponent(html);
+    var a = document.createElement('a');
+    a.href = encoded;
+    a.download = 'informe_geopolitico.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+</script>
+</body>
+</html>
